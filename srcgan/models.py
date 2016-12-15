@@ -22,14 +22,14 @@ def pixel_shuffle_upscale(x: chainer.Variable):
 class SRGeneratorResBlock(chainer.Chain):
     def __init__(self):
         super().__init__(
-            c1=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(64 * 3 * 3)),
-            bn1=chainer.links.BatchNormalization(96 * 96 * 64),
-            c2=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(64 * 3 * 3)),
-            bn2=chainer.links.BatchNormalization(96 * 96 * 64),
+            c1=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            bn1=chainer.links.BatchNormalization(64),
+            c2=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            bn2=chainer.links.BatchNormalization(64),
         )
 
     def __call__(self, x: chainer.Variable, test=False):
-        h = chainer.functions.ReLU(self.bn1(self.c1(x), test=test))
+        h = chainer.functions.relu(self.bn1(self.c1(x), test=test))
         h = self.bn2(self.c2(h))
         return h + x  # residual
 
@@ -37,7 +37,7 @@ class SRGeneratorResBlock(chainer.Chain):
 class SRGeneratorUpScaleBlock(chainer.Chain):
     def __init__(self):
         super().__init__(
-            conv=chainer.functions.Convolution2D(in_channels=64, out_channels=256, ksize=3, stride=1, pad=0,
+            conv=chainer.functions.Convolution2D(in_channels=64, out_channels=256, ksize=3, stride=1, pad=1,
                                                  wscale=0.02 * math.sqrt(64 * 3 * 3))
         )
 
@@ -49,19 +49,19 @@ class SRGeneratorUpScaleBlock(chainer.Chain):
 
 
 class SRGenerator(chainer.Chain):
-    def __init__(self, inputdim=100):
+    def __init__(self):
         super().__init__(
-            first=chainer.links.Convolution2D(3, 64, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(3 * 3 * 3)),
+            first=chainer.links.Convolution2D(3, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(3 * 3 * 3)),
             res1=SRGeneratorResBlock(),
             res2=SRGeneratorResBlock(),
             res3=SRGeneratorResBlock(),
             res4=SRGeneratorResBlock(),
             res5=SRGeneratorResBlock(),
-            conv_mid=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(64 * 3 * 3)),
-            bn_mid=chainer.links.BatchNormalization(96 * 96 * 64),
+            conv_mid=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            bn_mid=chainer.links.BatchNormalization(64),
             upscale1=SRGeneratorUpScaleBlock(),
             upscale2=SRGeneratorUpScaleBlock(),
-            conv_output=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=0,
+            conv_output=chainer.links.Convolution2D(64, 3, ksize=3, stride=1, pad=1,
                                                     wscale=0.02 * math.sqrt(64 * 3 * 3))
         )
 
