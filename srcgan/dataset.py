@@ -40,7 +40,10 @@ class ResizedImageDataset(dataset_mixin.DatasetMixin):
 
     def get_example(self, i) -> numpy.ndarray:
         image = self.base[i]
-        image_data = numpy.asarray(image, dtype=self._dtype).transpose(2, 0, 1)
+        image_ary = numpy.asarray(image, dtype=self._dtype)
+        if len(image_ary.shape) == 2: # mono
+            image_ary = numpy.dstack((image_ary, image_ary, image_ary))
+        image_data = image_ary.transpose(2, 0, 1)
         if image_data.shape[0] == 4:  # RGBA
             image_data = image_data[:3]
         return image_data

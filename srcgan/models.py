@@ -81,3 +81,39 @@ class SRGenerator(chainer.Chain):
 
         h = self.conv_output(h)
         return h
+
+
+class SRDiscriminator(chainer.Chain):
+    def __init__(self):
+        super().__init__(
+            conv_input=chainer.links.Convolution2D(3, 64, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(3 * 3 * 3)),
+            c1=chainer.links.Convolution2D(64, 64, ksize=3, stride=2, pad=0, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            bn1=chainer.links.BatchNormalization(64),
+            c2=chainer.links.Convolution2D(64, 128, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(128 * 3 * 3)),
+            bn2=chainer.links.BatchNormalization(128),
+            c3=chainer.links.Convolution2D(128, 128, ksize=3, stride=2, pad=0, wscale=0.02 * math.sqrt(128 * 3 * 3)),
+            bn3=chainer.links.BatchNormalization(128),
+            c4=chainer.links.Convolution2D(128, 256, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(128 * 3 * 3)),
+            bn4=chainer.links.BatchNormalization(256),
+            c5=chainer.links.Convolution2D(256, 256, ksize=3, stride=2, pad=0, wscale=0.02 * math.sqrt(256 * 3 * 3)),
+            bn5=chainer.links.BatchNormalization(256),
+            c6=chainer.links.Convolution2D(256, 512, ksize=3, stride=1, pad=0, wscale=0.02 * math.sqrt(256 * 3 * 3)),
+            bn6=chainer.links.BatchNormalization(512),
+            c7=chainer.links.Convolution2D(512, 512, ksize=3, stride=2, pad=0, wscale=0.02 * math.sqrt(512 * 3 * 3)),
+            bn7=chainer.links.BatchNormalization(512),
+            linear1=chainer.links.Linear(in_size=4608, out_size=1024),
+            linear2=chainer.links.Linear(in_size=None, out_size=2),
+        )
+
+    def __call__(self, x, test=False):
+        h = self.conv_input(x)
+        h = self.bn1(chainer.functions.elu(self.c1(h)), test=test)
+        h = self.bn2(chainer.functions.elu(self.c2(h)), test=test)
+        h = self.bn3(chainer.functions.elu(self.c3(h)), test=test)
+        h = self.bn4(chainer.functions.elu(self.c4(h)), test=test)
+        h = self.bn5(chainer.functions.elu(self.c5(h)), test=test)
+        h = self.bn6(chainer.functions.elu(self.c6(h)), test=test)
+        h = self.bn7(chainer.functions.elu(self.c7(h)), test=test)
+        h = chainer.functions.elu(self.linear1(h))
+        h = chainer.functions.sigmoid(self.linear2(h))
+        return h
