@@ -1,5 +1,6 @@
 .idea
 *.png
+*.jpg
 *.npz
 *.h5
 log.txt

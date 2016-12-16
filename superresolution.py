@@ -17,6 +17,8 @@ def clip_img(x):
 
 
 def variable2img(x):
+    print(x.data.max())
+    print(x.data.min())
     img = (numpy.vectorize(clip_img)(x.data[0, :, :, :])).transpose(1, 2, 0)
     return img
 
@@ -38,10 +40,11 @@ generator = srcgan.models.SRGenerator()
 chainer.serializers.load_npz(args.modelpath, generator)
 # chainer.serializers.load_hdf5(args.modelpath, generator)
 
-img = numpy.asarray(Image.open(args.imagepath).resize((96, 96)), dtype=numpy.float32)
+# img = numpy.asarray(Image.open(args.imagepath).resize((96, 96)), dtype=numpy.float32)
+img = numpy.asarray(Image.open(args.imagepath), dtype=numpy.float32)
 
 img_variable = img2variable(img)
-img_variable_sr = generator(img_variable)
+img_variable_sr = generator(img_variable, test=True)
 img_sr = variable2img(img_variable_sr)
 
 cv2.imshow("test", cv2.cvtColor(img_sr, cv2.COLOR_RGB2BGR))

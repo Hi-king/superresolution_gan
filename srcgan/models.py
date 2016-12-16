@@ -68,12 +68,12 @@ class SRGenerator(chainer.Chain):
     def __call__(self, x: chainer.Variable, test=False):
         h = first = chainer.functions.relu(self.first(x))
 
-        h = self.res1(h)
-        h = self.res2(h)
-        h = self.res3(h)
-        h = self.res4(h)
-        h = self.res5(h)
-        mid = self.bn_mid(self.conv_mid(h))
+        h = self.res1(h, test=test)
+        h = self.res2(h, test=test)
+        h = self.res3(h, test=test)
+        h = self.res4(h, test=test)
+        h = self.res5(h, test=test)
+        mid = self.bn_mid(self.conv_mid(h), test=test)
 
         h = first + mid
 
