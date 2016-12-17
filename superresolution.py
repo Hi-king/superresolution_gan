@@ -34,6 +34,7 @@ def resize_copy(img):
 parser = argparse.ArgumentParser()
 parser.add_argument("--modelpath", required=True)
 parser.add_argument("--imagepath", required=True)
+parser.add_argument("--outputpath")
 args = parser.parse_args()
 
 generator = srcgan.models.SRGenerator()
@@ -47,7 +48,10 @@ img_variable = img2variable(img)
 img_variable_sr = generator(img_variable, test=True)
 img_sr = variable2img(img_variable_sr)
 
-cv2.imshow("test", cv2.cvtColor(img_sr, cv2.COLOR_RGB2BGR))
-cv2.imshow("test2", cv2.cvtColor(cv2.resize(img / 256, (384, 384)), cv2.COLOR_RGB2BGR))
-cv2.imshow("test3", cv2.cvtColor(resize_copy(img / 256), cv2.COLOR_RGB2BGR))
-cv2.waitKey(-1)
+if args.outputpath is None:
+    cv2.imshow("test", cv2.cvtColor(img_sr, cv2.COLOR_RGB2BGR))
+    cv2.imshow("test2", cv2.cvtColor(cv2.resize(img / 256, (384, 384)), cv2.COLOR_RGB2BGR))
+    cv2.imshow("test3", cv2.cvtColor(resize_copy(img / 256), cv2.COLOR_RGB2BGR))
+    cv2.waitKey(-1)
+else:
+    cv2.imwrite(args.outputpath, cv2.cvtColor(img_sr, cv2.COLOR_RGB2BGR))

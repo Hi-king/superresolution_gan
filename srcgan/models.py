@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import functools
 import chainer
+import chainer.links.caffe
 import math
 
 
@@ -117,3 +118,41 @@ class SRDiscriminator(chainer.Chain):
         h = chainer.functions.elu(self.linear1(h))
         h = chainer.functions.sigmoid(self.linear2(h))
         return h
+
+
+class VGG(object):
+    def __init__(self, caffemodelpath):
+        self.model = chainer.links.caffe.CaffeFunction(caffemodelpath)
+
+    def forward_layers(self, x, stages=4, average_pooling=False):
+        if average_pooling:
+            pooling = lambda x: chainer.functions.average_pooling_2d(chainer.functions.relu(x), 2, stride=2)
+        else:
+            pooling = lambda x: chainer.functions.max_pooling_2d(chainer.functions.relu(x), 2, stride=2)
+
+        ret = []
+        y1 = self.model.conv1_2(chainer.functions.relu(self.model.conv1_1(x)))
+        ret.append(y1)
+        if stages == 0: return ret
+        x1 = pooling(y1)
+
+        y2 = self.model.conv2_2(chainer.functions.relu(self.model.conv2_1(x1)))
+        ret.append(y2)
+        if stages == 1: return ret
+        x2 = pooling(y2)
+
+        y3 = self.model.conv3_3(
+            chainer.functions.relu(self.model.conv3_2(chainer.functions.relu(self.model.conv3_1(x2)))))
+        ret.append(y3)
+        if stages == 2: return ret
+        x3 = pooling(y3)
+
+        y4 = self.model.conv4_4(chainer.functions.relu(self.model.conv4_3(
+            chainer.functions.relu(self.model.conv4_2(chainer.functions.relu(self.model.conv4_1(x3)))))))
+        ret.append(y4)
+        if stages == 3: return ret
+        x4 = pooling(y4)
+        y5 = self.model.conv5_4(chainer.functions.relu(self.model.conv5_3(
+            chainer.functions.relu(self.model.conv5_2(chainer.functions.relu(self.model.conv5_1(x4)))))))
+        ret.append(y5)
+        return [y1, y2, y3, y4, y5]

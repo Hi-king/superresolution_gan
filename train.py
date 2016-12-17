@@ -3,11 +3,24 @@ import argparse
 import glob
 import logging
 import os
-
+import pickle
 import chainer
 import numpy
 
 import srcgan
+
+
+def load_vgg(modelpath) -> srcgan.models.VGG:
+    modelname = 'vgg'
+    cachepath = "{}.dump".format(modelname)
+    if os.path.exists(cachepath):
+        nn = pickle.load(open(cachepath, "rb"))
+    else:
+        nn = srcgan.models.VGG(modelpath)
+        with open(cachepath, "wb+") as f:
+            pickle.dump(nn, f, 0)
+    return nn
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", required=True)
@@ -18,6 +31,8 @@ parser.add_argument("--use_discriminator", action="store_true")
 parser.add_argument("--pretrained_generator")
 parser.add_argument("--k_adversarial", type=float, default=1)
 parser.add_argument("--k_mse", type=float, default=1)
+parser.add_argument("--vgg")
+parser.add_argument("--vgg_stage", type=int, default=4)
 args = parser.parse_args()
 
 OUTPUT_DIRECTORY = args.outdirname
@@ -58,11 +73,16 @@ if args.use_discriminator:
     optimizer_discriminator = chainer.optimizers.Adam()
     optimizer_discriminator.setup(discriminator)
 
+if args.vgg is not None:
+    vgg = load_vgg(args.vgg)
+    if args.gpu >= 0:
+        vgg.model.to_gpu()
+
 optimizer_generator = chainer.optimizers.Adam()
 optimizer_generator.setup(generator)
 
 count_processed = 0
-sum_loss_generator, sum_loss_generator_adversarial, sum_loss_generator_mse = 0, 0, 0
+sum_loss_generator, sum_loss_generator_adversarial, sum_loss_generator_content = 0, 0, 0
 for zipped_batch in iterator:
     low_res = chainer.Variable(xp.array([zipped[0] for zipped in zipped_batch]))
     high_res = chainer.Variable(xp.array([zipped[1] for zipped in zipped_batch]))
@@ -75,13 +95,20 @@ for zipped_batch in iterator:
             discriminated_from_super_res,
             chainer.Variable(xp.zeros(discriminated_from_super_res.data.shape[0], dtype=xp.int32))
         )
-        loss_generator_mse = chainer.functions.mean_squared_error(
-            super_res,
-            high_res
-        )
-        loss_generator = loss_generator_mse * args.k_mse + loss_generator_adversarial * args.k_adversarial
+        if args.vgg is None:
+            loss_generator_content = chainer.functions.mean_squared_error(
+                super_res,
+                high_res
+            )
+        else:
+            loss_generator_content = chainer.functions.mean_squared_error(
+                vgg.forward_layers(super_res, stages=args.vgg_stage)[args.vgg_stage],
+                vgg.forward_layers(high_res, stages=args.vgg_stage)[args.vgg_stage]
+            )
+
+        loss_generator = loss_generator_content * args.k_mse + loss_generator_adversarial * args.k_adversarial
         sum_loss_generator_adversarial += chainer.cuda.to_cpu(loss_generator_adversarial.data)
-        sum_loss_generator_mse += chainer.cuda.to_cpu(loss_generator_mse.data)
+        sum_loss_generator_content += chainer.cuda.to_cpu(loss_generator_content.data)
 
         loss_discriminator = chainer.functions.softmax_cross_entropy(
             discriminated_from_super_res,
@@ -119,8 +146,8 @@ for zipped_batch in iterator:
         # logging.info("loss_discriminator: {}".format(sum_loss_discriminator / report_span))
         logging.info("loss_generator: {}".format(sum_loss_generator / report_span))
         logging.info("loss_generator_adversarial: {}".format(sum_loss_generator_adversarial / report_span))
-        logging.info("loss_generator_mse: {}".format(sum_loss_generator_mse / report_span))
-        sum_loss_generator, sum_loss_generator_adversarial, sum_loss_generator_mse = 0, 0, 0
+        logging.info("loss_generator_mse: {}".format(sum_loss_generator_content / report_span))
+        sum_loss_generator, sum_loss_generator_adversarial, sum_loss_generator_content = 0, 0, 0
     if count_processed % save_span == 0:
         chainer.serializers.save_npz(
             os.path.join(OUTPUT_DIRECTORY, "generator_model_{}.npz".format(count_processed)), generator)
